@@ -1,18 +1,32 @@
-
-// Estado local da aplicação
 let categorias = [];
 let produtos = [];
+let categoriaAtiva = null;
+let termoBusca = '';
+let ordenacaoAtiva = 'relevancia';
 
-// Elementos do DOM
-const tabButtons = document.querySelectorAll('.tab-btn[data-tab]');
-const tabContents = document.querySelectorAll('.tab-content');
+// Ícones SVG no padrão Reicon
+const ICONS = {
+  cart: `<svg class="icon icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>`,
+  edit: `<svg class="icon icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`,
+  trash: `<svg class="icon icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`,
+  check: `<svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`,
+  alert: `<svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>`
+};
+
+// Elementos
+const navButtons = document.querySelectorAll('.nav-btn[data-tab]');
+const tabPanes = document.querySelectorAll('.tab-pane');
 
 const vitrineGrid = document.getElementById('vitrine-grid');
-const filtroCategoriaVitrine = document.getElementById('filtro-categoria-vitrine');
+const categoryChipsList = document.getElementById('category-chips-list');
+const contadorProdutos = document.getElementById('contador-produtos');
+const inputBusca = document.getElementById('input-busca');
+const btnLimparBusca = document.getElementById('btn-limpar-busca');
+const selectOrdenacao = document.getElementById('ordenar-produtos');
+
 const tabelaProdutosBody = document.getElementById('tabela-produtos-body');
 const tabelaCategoriasBody = document.getElementById('tabela-categorias-body');
 
-// Modais
 const modalProduto = document.getElementById('modal-produto');
 const formProduto = document.getElementById('form-produto');
 const modalProdutoTitulo = document.getElementById('modal-produto-titulo');
@@ -32,35 +46,37 @@ const toastContainer = document.getElementById('toast-container');
 
 // Inicialização
 document.addEventListener('DOMContentLoaded', () => {
-  configurarNavegacao();
-  configurarModais();
-  configurarFiltros();
-  carregarTudo();
+  setupNavigation();
+  setupModals();
+  setupSearchAndFilter();
+  carregarDadosIniciais();
 });
 
-// Sistema de Notificações Toast
+// Toast Notifications
 function showToast(mensagem, tipo = 'success') {
   const toast = document.createElement('div');
-  toast.className = `toast toast-${tipo}`;
+  toast.className = `toast-msg ${tipo}`;
+  const icone = tipo === 'success' ? ICONS.check : ICONS.alert;
   toast.innerHTML = `
-    <span>${mensagem}</span>
-    <span style="cursor:pointer; margin-left:12px; font-weight:bold;">&times;</span>
+    ${icone}
+    <span style="flex:1;">${escapeHtml(mensagem)}</span>
   `;
   toastContainer.appendChild(toast);
 
-  toast.addEventListener('click', () => toast.remove());
   setTimeout(() => {
-    if (toast.parentElement) toast.remove();
-  }, 4000);
+    toast.style.opacity = '0';
+    toast.style.transition = 'opacity 0.2s ease';
+    setTimeout(() => toast.remove(), 200);
+  }, 3500);
 }
 
-// Navegação entre Abas
-function configurarNavegacao() {
-  tabButtons.forEach(btn => {
+// Navegação entre abas
+function setupNavigation() {
+  navButtons.forEach(btn => {
     btn.addEventListener('click', () => {
       const tabId = btn.getAttribute('data-tab');
-      tabButtons.forEach(b => b.classList.remove('active'));
-      tabContents.forEach(c => c.classList.remove('active'));
+      navButtons.forEach(b => b.classList.remove('active'));
+      tabPanes.forEach(p => p.classList.remove('active'));
 
       btn.classList.add('active');
       document.getElementById(`tab-${tabId}`).classList.add('active');
@@ -69,36 +85,47 @@ function configurarNavegacao() {
 }
 
 // Configuração de Modais
-function configurarModais() {
-  // Modal Produto
+function setupModals() {
   btnAbrirModalProduto.addEventListener('click', () => abrirModalProduto());
   btnFecharModalProduto.addEventListener('click', () => fecharModalProduto());
   btnCancelarModalProduto.addEventListener('click', () => fecharModalProduto());
   formProduto.addEventListener('submit', salvarProduto);
 
-  // Modal Categoria
   btnAbrirModalCategoria.addEventListener('click', () => abrirModalCategoria());
   btnFecharModalCategoria.addEventListener('click', () => fecharModalCategoria());
   btnCancelarModalCategoria.addEventListener('click', () => fecharModalCategoria());
   formCategoria.addEventListener('submit', salvarCategoria);
 
-  // Fechar ao clicar no backdrop
   window.addEventListener('click', (e) => {
     if (e.target === modalProduto) fecharModalProduto();
     if (e.target === modalCategoria) fecharModalCategoria();
   });
 }
 
-// Configuração de Filtros
-function configurarFiltros() {
-  filtroCategoriaVitrine.addEventListener('change', () => {
-    const catId = filtroCategoriaVitrine.value;
-    carregarProdutos(catId ? parseInt(catId) : null);
+// Busca e Ordenação
+function setupSearchAndFilter() {
+  inputBusca.addEventListener('input', () => {
+    termoBusca = inputBusca.value.trim().toLowerCase();
+    btnLimparBusca.classList.toggle('hidden', termoBusca.length === 0);
+    renderizarVitrine();
+  });
+
+  btnLimparBusca.addEventListener('click', () => {
+    inputBusca.value = '';
+    termoBusca = '';
+    btnLimparBusca.classList.add('hidden');
+    renderizarVitrine();
+    inputBusca.focus();
+  });
+
+  selectOrdenacao.addEventListener('change', () => {
+    ordenacaoAtiva = selectOrdenacao.value;
+    renderizarVitrine();
   });
 }
 
-// Carregamento de Dados Iniciais
-async function carregarTudo() {
+// Carga Inicial
+async function carregarDadosIniciais() {
   await carregarCategorias();
   await carregarProdutos();
 }
@@ -106,38 +133,64 @@ async function carregarTudo() {
 // API: Categorias
 async function carregarCategorias() {
   try {
-    const resposta = await fetch('/categorias');
-    if (!resposta.ok) throw new Error('Erro ao carregar categorias.');
-    categorias = await resposta.json();
+    const res = await fetch('/categorias');
+    if (!res.ok) throw new Error('Falha ao carregar categorias.');
+    categorias = await res.json();
 
-    renderizarSelectsCategorias();
+    renderCategoryChips();
+    renderizarSelectCategoriasModal();
     renderizarTabelaCategorias();
-  } catch (erro) {
-    showToast(erro.message, 'error');
+  } catch (err) {
+    showToast(err.message, 'error');
   }
 }
 
-function renderizarSelectsCategorias() {
-  // Select do filtro da vitrine
-  const valorAtualFiltro = filtroCategoriaVitrine.value;
-  filtroCategoriaVitrine.innerHTML = '<option value="">Todas as Categorias</option>';
+function renderCategoryChips() {
+  categoryChipsList.innerHTML = '';
 
-  // Select do modal de produto
-  prodCategoriaSelect.innerHTML = '<option value="">Selecione uma categoria...</option>';
+  const btnTodos = document.createElement('button');
+  btnTodos.className = `chip ${categoriaAtiva === null ? 'active' : ''}`;
+  btnTodos.textContent = 'Todos os Produtos';
+  btnTodos.addEventListener('click', () => {
+    categoriaAtiva = null;
+    updateActiveChip();
+    carregarProdutos();
+  });
+  categoryChipsList.appendChild(btnTodos);
 
   categorias.forEach(cat => {
-    // Filtro Vitrine
-    const optFiltro = document.createElement('option');
-    optFiltro.value = cat.id;
-    optFiltro.textContent = cat.nome;
-    if (String(cat.id) === valorAtualFiltro) optFiltro.selected = true;
-    filtroCategoriaVitrine.appendChild(optFiltro);
+    const chip = document.createElement('button');
+    chip.className = `chip ${categoriaAtiva === cat.id ? 'active' : ''}`;
+    chip.textContent = cat.nome;
+    chip.addEventListener('click', () => {
+      categoriaAtiva = cat.id;
+      updateActiveChip();
+      carregarProdutos(cat.id);
+    });
+    categoryChipsList.appendChild(chip);
+  });
+}
 
-    // Modal Produto
-    const optModal = document.createElement('option');
-    optModal.value = cat.id;
-    optModal.textContent = cat.nome;
-    prodCategoriaSelect.appendChild(optModal);
+function updateActiveChip() {
+  const chips = categoryChipsList.querySelectorAll('.chip');
+  chips.forEach((chip, index) => {
+    if (index === 0 && categoriaAtiva === null) {
+      chip.classList.add('active');
+    } else if (index > 0 && categorias[index - 1]?.id === categoriaAtiva) {
+      chip.classList.add('active');
+    } else {
+      chip.classList.remove('active');
+    }
+  });
+}
+
+function renderizarSelectCategoriasModal() {
+  prodCategoriaSelect.innerHTML = '<option value="">Selecione uma categoria...</option>';
+  categorias.forEach(cat => {
+    const opt = document.createElement('option');
+    opt.value = cat.id;
+    opt.textContent = cat.nome;
+    prodCategoriaSelect.appendChild(opt);
   });
 }
 
@@ -145,7 +198,7 @@ function renderizarTabelaCategorias() {
   tabelaCategoriasBody.innerHTML = '';
   if (categorias.length === 0) {
     tabelaCategoriasBody.innerHTML = `
-      <tr><td colspan="5" style="text-align:center; color: var(--text-muted);">Nenhuma categoria cadastrada.</td></tr>
+      <tr><td colspan="5" style="text-align:center; color: var(--text-muted); padding: 2rem;">Nenhuma categoria registrada.</td></tr>
     `;
     return;
   }
@@ -154,13 +207,13 @@ function renderizarTabelaCategorias() {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>#${cat.id}</td>
-      <td><strong>${escapeHtml(cat.nome)}</strong></td>
-      <td style="color: var(--text-muted); font-size: 0.9rem;">${escapeHtml(cat.descricao || 'Sem descrição')}</td>
-      <td><span class="badge-tag">${cat.total_produtos || 0} produto(s)</span></td>
+      <td><strong style="color:#ffffff;">${escapeHtml(cat.nome)}</strong></td>
+      <td style="color: var(--text-muted); font-size: 0.84rem;">${escapeHtml(cat.descricao || 'Sem descrição')}</td>
+      <td><span style="font-weight:600; color: #93c5fd;">${cat.total_produtos || 0} produto(s)</span></td>
       <td>
-        <div class="actions-cell">
-          <button class="btn btn-sm btn-edit" onclick="editarCategoria(${cat.id})">✏️ Editar</button>
-          <button class="btn btn-sm btn-delete" onclick="excluirCategoria(${cat.id})">🗑️ Excluir</button>
+        <div class="cell-actions">
+          <button class="btn-icon" title="Editar" onclick="editarCategoria(${cat.id})">${ICONS.edit}</button>
+          <button class="btn-icon btn-icon-danger" title="Excluir" onclick="excluirCategoria(${cat.id})">${ICONS.trash}</button>
         </div>
       </td>
     `;
@@ -175,7 +228,7 @@ function abrirModalCategoria(cat = null) {
     document.getElementById('cat-nome').value = cat.nome;
     document.getElementById('cat-descricao').value = cat.descricao || '';
   } else {
-    modalCategoriaTitulo.textContent = 'Cadastrar Nova Categoria';
+    modalCategoriaTitulo.textContent = 'Adicionar Categoria';
     formCategoria.reset();
     document.getElementById('cat-id').value = '';
   }
@@ -204,92 +257,126 @@ async function salvarCategoria(e) {
   const method = id ? 'PUT' : 'POST';
 
   try {
-    const resposta = await fetch(url, {
+    const res = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
 
-    const resultado = await resposta.json();
-    if (!resposta.ok) throw new Error(resultado.detail || 'Erro ao salvar categoria.');
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Erro ao salvar categoria.');
 
-    showToast(id ? 'Categoria atualizada com sucesso!' : 'Categoria cadastrada com sucesso!');
+    showToast(id ? 'Categoria atualizada.' : 'Categoria cadastrada com sucesso.');
     fecharModalCategoria();
     await carregarCategorias();
-    await carregarProdutos();
-  } catch (erro) {
-    showToast(erro.message, 'error');
+    await carregarProdutos(categoriaAtiva);
+  } catch (err) {
+    showToast(err.message, 'error');
   }
 }
 
 async function excluirCategoria(id) {
   const cat = categorias.find(c => c.id === id);
-  const confirmacao = confirm(`Tem certeza que deseja excluir a categoria "${cat?.nome}"?\nATENÇÃO: Todos os produtos vinculados a ela também serão removidos!`);
-  if (!confirmacao) return;
+  const ok = confirm(`Deseja remover a categoria "${cat?.nome}"?\nTodos os produtos vinculados a ela serão excluídos.`);
+  if (!ok) return;
 
   try {
-    const resposta = await fetch(`/categorias/${id}`, { method: 'DELETE' });
-    const resultado = await resposta.json();
-    if (!resposta.ok) throw new Error(resultado.detail || 'Erro ao excluir categoria.');
+    const res = await fetch(`/categorias/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Erro ao excluir categoria.');
 
-    showToast('Categoria removida com sucesso!');
+    showToast('Categoria removida.');
+    if (categoriaAtiva === id) categoriaAtiva = null;
     await carregarCategorias();
     await carregarProdutos();
-  } catch (erro) {
-    showToast(erro.message, 'error');
+  } catch (err) {
+    showToast(err.message, 'error');
   }
 }
 
 // API: Produtos
-async function carregarProdutos(categoriaId = null) {
+async function carregarProdutos(catId = null) {
   try {
     let url = '/produtos';
-    if (categoriaId) url += `?categoria_id=${categoriaId}`;
+    if (catId) url += `?categoria_id=${catId}`;
 
-    const resposta = await fetch(url);
-    if (!resposta.ok) throw new Error('Erro ao carregar produtos.');
-    produtos = await resposta.json();
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Falha ao carregar produtos.');
+    produtos = await res.json();
 
     renderizarVitrine();
     renderizarTabelaProdutos();
-  } catch (erro) {
-    showToast(erro.message, 'error');
+  } catch (err) {
+    showToast(err.message, 'error');
   }
 }
 
 function renderizarVitrine() {
+  let lista = [...produtos];
+
+  // Filtro de busca textual
+  if (termoBusca) {
+    lista = lista.filter(p =>
+      p.nome.toLowerCase().includes(termoBusca) ||
+      (p.descricao && p.descricao.toLowerCase().includes(termoBusca)) ||
+      (p.categoria_nome && p.categoria_nome.toLowerCase().includes(termoBusca))
+    );
+  }
+
+  // Ordenação
+  if (ordenacaoAtiva === 'preco-crescente') {
+    lista.sort((a, b) => a.preco - b.preco);
+  } else if (ordenacaoAtiva === 'preco-decrescente') {
+    lista.sort((a, b) => b.preco - a.preco);
+  } else if (ordenacaoAtiva === 'nome') {
+    lista.sort((a, b) => a.nome.localeCompare(b.nome));
+  }
+
+  contadorProdutos.textContent = `Exibindo ${lista.length} produto(s)`;
+
   vitrineGrid.innerHTML = '';
-  if (produtos.length === 0) {
+  if (lista.length === 0) {
     vitrineGrid.innerHTML = `
-      <div style="grid-column: 1 / -1; text-align: center; padding: 3rem; color: var(--text-muted);">
-        <p style="font-size: 1.2rem;">🎮 Nenhum item encontrado nesta categoria.</p>
+      <div style="grid-column: 1 / -1; text-align: center; padding: 4rem 1rem; color: var(--text-muted);">
+        <p style="font-size: 1rem; font-weight: 500;">Nenhum produto encontrado para os critérios selecionados.</p>
       </div>
     `;
     return;
   }
 
-  produtos.forEach(prod => {
-    const card = document.createElement('div');
-    card.className = 'product-card';
+  lista.forEach(prod => {
+    const card = document.createElement('article');
+    card.className = 'product-item';
 
-    const estoqueStatus = prod.estoque > 5
-      ? `<span class="stock-badge stock-in">✓ ${prod.estoque} em estoque</span>`
-      : `<span class="stock-badge stock-low">⚠️ Apenas ${prod.estoque} restantes</span>`;
+    const estoqueIn = prod.estoque > 5;
+    const parcelas = (prod.preco / 10).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const precoFormatado = prod.preco.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
     card.innerHTML = `
-      <div class="card-image-wrap">
-        <span class="category-tag">${escapeHtml(prod.categoria_nome)}</span>
-        <img src="${escapeHtml(prod.imagem_url || 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=800&q=80')}" alt="${escapeHtml(prod.nome)}" onerror="this.src='https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=800&q=80'">
+      <div class="product-media">
+        <span class="product-category-tag">${escapeHtml(prod.categoria_nome)}</span>
+        <img src="${escapeHtml(prod.imagem_url || '')}" alt="${escapeHtml(prod.nome)}" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=800&q=80'">
       </div>
-      <div class="card-body">
-        <h4 class="card-title">${escapeHtml(prod.nome)}</h4>
-        <p class="card-desc">${escapeHtml(prod.descricao || 'Produto de alta performance oficial Game Center Paulista.')}</p>
-        <div class="card-footer">
-          <div class="price-box">
-            <span class="price-label">Preço à vista</span>
-            <span class="price-value">R$ ${prod.preco.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+      <div class="product-details">
+        <h3 class="product-name">${escapeHtml(prod.nome)}</h3>
+        <p class="product-description">${escapeHtml(prod.descricao || 'Produto original com garantia de fábrica.')}</p>
+        
+        <div class="product-pricing">
+          <div class="price-main">R$ ${precoFormatado}</div>
+          <div class="price-installment">ou em até 10x de R$ ${parcelas} sem juros</div>
+        </div>
+
+        <div class="product-action-row">
+          <div class="stock-indicator">
+            <span class="stock-dot ${estoqueIn ? 'in' : 'low'}"></span>
+            <span style="color: ${estoqueIn ? 'var(--text-muted)' : 'var(--warning)'}; font-size: 0.74rem;">
+              ${estoqueIn ? `${prod.estoque} unidades` : `Apenas ${prod.estoque} restantes`}
+            </span>
           </div>
-          ${estoqueStatus}
+          <button class="btn-buy" onclick="adicionarAoCarrinho('${escapeHtml(prod.nome)}')">
+            ${ICONS.cart}
+            <span>Comprar</span>
+          </button>
         </div>
       </div>
     `;
@@ -297,11 +384,15 @@ function renderizarVitrine() {
   });
 }
 
+function adicionarAoCarrinho(nome) {
+  showToast(`Item adicionado: ${nome}`);
+}
+
 function renderizarTabelaProdutos() {
   tabelaProdutosBody.innerHTML = '';
   if (produtos.length === 0) {
     tabelaProdutosBody.innerHTML = `
-      <tr><td colspan="7" style="text-align:center; color: var(--text-muted);">Nenhum produto cadastrado no momento.</td></tr>
+      <tr><td colspan="7" style="text-align:center; color: var(--text-muted); padding: 2rem;">Nenhum produto cadastrado.</td></tr>
     `;
     return;
   }
@@ -311,21 +402,21 @@ function renderizarTabelaProdutos() {
     tr.innerHTML = `
       <td>#${prod.id}</td>
       <td>
-        <img class="table-img" src="${escapeHtml(prod.imagem_url || '')}" alt="${escapeHtml(prod.nome)}" onerror="this.src='https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=800&q=80'">
+        <img class="table-thumb" src="${escapeHtml(prod.imagem_url || '')}" alt="${escapeHtml(prod.nome)}" onerror="this.src='https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=800&q=80'">
       </td>
       <td>
-        <strong>${escapeHtml(prod.nome)}</strong>
-        <div style="font-size: 0.8rem; color: var(--text-subtle); max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+        <strong style="color: #ffffff;">${escapeHtml(prod.nome)}</strong>
+        <div style="font-size: 0.76rem; color: var(--text-subtle); max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
           ${escapeHtml(prod.descricao || '')}
         </div>
       </td>
-      <td><span class="badge-tag">${escapeHtml(prod.categoria_nome)}</span></td>
-      <td><strong style="color: var(--accent-emerald);">R$ ${prod.preco.toFixed(2)}</strong></td>
+      <td><span style="color: var(--text-muted);">${escapeHtml(prod.categoria_nome)}</span></td>
+      <td><strong style="color: #ffffff;">R$ ${prod.preco.toFixed(2)}</strong></td>
       <td>${prod.estoque} un.</td>
       <td>
-        <div class="actions-cell">
-          <button class="btn btn-sm btn-edit" onclick="editarProduto(${prod.id})">✏️ Editar</button>
-          <button class="btn btn-sm btn-delete" onclick="excluirProduto(${prod.id})">🗑️ Excluir</button>
+        <div class="cell-actions">
+          <button class="btn-icon" title="Editar" onclick="editarProduto(${prod.id})">${ICONS.edit}</button>
+          <button class="btn-icon btn-icon-danger" title="Excluir" onclick="excluirProduto(${prod.id})">${ICONS.trash}</button>
         </div>
       </td>
     `;
@@ -335,7 +426,7 @@ function renderizarTabelaProdutos() {
 
 function abrirModalProduto(prod = null) {
   if (categorias.length === 0) {
-    showToast('Cadastre pelo menos uma categoria antes de adicionar um produto!', 'error');
+    showToast('Cadastre ao menos uma categoria antes de criar um produto.', 'error');
     return;
   }
 
@@ -349,7 +440,7 @@ function abrirModalProduto(prod = null) {
     document.getElementById('prod-imagem').value = prod.imagem_url || '';
     document.getElementById('prod-descricao').value = prod.descricao || '';
   } else {
-    modalProdutoTitulo.textContent = 'Cadastrar Novo Produto';
+    modalProdutoTitulo.textContent = 'Adicionar Produto';
     formProduto.reset();
     document.getElementById('prod-id').value = '';
   }
@@ -382,46 +473,45 @@ async function salvarProduto(e) {
   const method = id ? 'PUT' : 'POST';
 
   try {
-    const resposta = await fetch(url, {
+    const res = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
 
-    const resultado = await resposta.json();
-    if (!resposta.ok) throw new Error(resultado.detail || 'Erro ao salvar produto.');
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Erro ao salvar produto.');
 
-    showToast(id ? 'Produto atualizado com sucesso!' : 'Produto cadastrado com sucesso!');
+    showToast(id ? 'Produto atualizado com sucesso.' : 'Produto cadastrado.');
     fecharModalProduto();
-    await carregarProdutos();
+    await carregarProdutos(categoriaAtiva);
     await carregarCategorias();
-  } catch (erro) {
-    showToast(erro.message, 'error');
+  } catch (err) {
+    showToast(err.message, 'error');
   }
 }
 
 async function excluirProduto(id) {
   const prod = produtos.find(p => p.id === id);
-  const confirmacao = confirm(`Deseja realmente remover o produto "${prod?.nome}"?`);
-  if (!confirmacao) return;
+  const ok = confirm(`Deseja remover o produto "${prod?.nome}"?`);
+  if (!ok) return;
 
   try {
-    const resposta = await fetch(`/produtos/${id}`, { method: 'DELETE' });
-    const resultado = await resposta.json();
-    if (!resposta.ok) throw new Error(resultado.detail || 'Erro ao excluir produto.');
+    const res = await fetch(`/produtos/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Erro ao excluir produto.');
 
-    showToast('Produto excluído com sucesso!');
-    await carregarProdutos();
+    showToast('Produto removido.');
+    await carregarProdutos(categoriaAtiva);
     await carregarCategorias();
-  } catch (erro) {
-    showToast(erro.message, 'error');
+  } catch (err) {
+    showToast(err.message, 'error');
   }
 }
 
-// Utilitário de escape para segurança contra XSS
-function escapeHtml(string) {
-  if (!string) return '';
-  return String(string)
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -429,8 +519,8 @@ function escapeHtml(string) {
     .replace(/'/g, '&#039;');
 }
 
-// Expor funções globais para botões inline
 window.editarProduto = editarProduto;
 window.excluirProduto = excluirProduto;
 window.editarCategoria = editarCategoria;
 window.excluirCategoria = excluirCategoria;
+window.adicionarAoCarrinho = adicionarAoCarrinho;
