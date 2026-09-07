@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Game Center Paulista | E-commerce & Gestão</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%200%20100%20100%22><text y=%22.9em%22 font-size=%2290%22>🎮</text></svg>">
+</head>
+<body>
+
+  <!-- Navbar -->
+  <header class="navbar">
+    <div class="nav-container">
+      <div class="brand">
+        <span class="brand-icon">🎮</span>
+        <div class="brand-text">
+          <h1>Game Center Paulista</h1>
+          <span class="tagline">Next-Gen Gaming Experience & Store</span>
+        </div>
+      </div>
+
+      <nav class="nav-tabs">
+        <button class="tab-btn active" data-tab="vitrine">
+          <span class="icon">🛍️</span> Vitrine da Loja
+        </button>
+        <button class="tab-btn" data-tab="produtos">
+          <span class="icon">📦</span> Gestão de Produtos
+        </button>
+        <button class="tab-btn" data-tab="categorias">
+          <span class="icon">🏷️</span> Categorias
+        </button>
+        <a href="/docs" target="_blank" class="tab-btn doc-link">
+          <span class="icon">⚡</span> Swagger API
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Banner Hero -->
+  <section class="hero-banner">
+    <div class="hero-content">
+      <span class="hero-badge">🔥 Lançamentos Oficiais 2026</span>
+      <h2>PlayStation 5, GTA 6 & Os Maiores Títulos do Mundo Gamer</h2>
+      <p>Os melhores consoles, jogos e acessórios pelos melhores preços.</p>
+    </div>
+  </section>
+
+  <!-- Container Principal -->
+  <main class="main-container">
+
+    <!-- TAB 1: Vitrine da Loja -->
+    <section id="tab-vitrine" class="tab-content active">
+      <div class="section-header">
+        <div>
+          <h3>Vitrine de Destaques</h3>
+          <p>Explore nosso estoque de consoles, jogos e acessórios</p>
+        </div>
+        <div class="filter-group">
+          <label for="filtro-categoria-vitrine">Filtrar Categoria:</label>
+          <select id="filtro-categoria-vitrine">
+            <option value="">Todas as Categorias</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="vitrine-grid" class="cards-grid">
+        <!-- Cards de produtos renderizados via JS -->
+      </div>
+    </section>
+
+    <!-- TAB 2: Gestão de Produtos (CRUD) -->
+    <section id="tab-produtos" class="tab-content">
+      <div class="section-header">
+        <div>
+          <h3>Gerenciamento de Produtos</h3>
+          <p>Cadastre, visualize, edite e remova itens do catálogo (Operações CRUD)</p>
+        </div>
+        <button id="btn-abrir-modal-produto" class="btn btn-primary">
+          <span>➕</span> Novo Produto
+        </button>
+      </div>
+
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Imagem</th>
+              <th>Nome do Item</th>
+              <th>Categoria (1:N)</th>
+              <th>Preço</th>
+              <th>Estoque</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tabela-produtos-body">
+            <!-- Linhas renderizadas via JS -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TAB 3: Gestão de Categorias (CRUD) -->
+    <section id="tab-categorias" class="tab-content">
+      <div class="section-header">
+        <div>
+          <h3>Gerenciamento de Categorias</h3>
+          <p>Mantenha as categorias organizadas e observe o vínculo relacional com os produtos</p>
+        </div>
+        <button id="btn-abrir-modal-categoria" class="btn btn-primary">
+          <span>➕</span> Nova Categoria
+        </button>
+      </div>
+
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nome da Categoria</th>
+              <th>Descrição</th>
+              <th>Qtd. Produtos Vinculados</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tabela-categorias-body">
+            <!-- Linhas renderizadas via JS -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL: Produto (Criar / Editar) -->
+  <div id="modal-produto" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h4 id="modal-produto-titulo">Cadastrar Novo Produto</h4>
+        <button class="modal-close" id="btn-fechar-modal-produto">&times;</button>
+      </div>
+      <form id="form-produto" class="modal-body">
+        <input type="hidden" id="prod-id">
+        
+        <div class="form-group">
+          <label for="prod-nome">Nome do Produto *</label>
+          <input type="text" id="prod-nome" placeholder="Ex: Marvel's Spider-Man 2" required>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="prod-categoria">Categoria (Chave Estrangeira 1:N) *</label>
+            <select id="prod-categoria" required>
+              <option value="">Selecione uma categoria...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="prod-preco">Preço (R$) *</label>
+            <input type="number" id="prod-preco" step="0.01" min="0" placeholder="299.90" required>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="prod-estoque">Quantidade em Estoque *</label>
+            <input type="number" id="prod-estoque" min="0" placeholder="15" required>
+          </div>
+          <div class="form-group">
+            <label for="prod-imagem">URL da Imagem de Capa</label>
+            <input type="url" id="prod-imagem" placeholder="https://exemplo.com/imagem.jpg">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="prod-descricao">Descrição do Produto</label>
+          <textarea id="prod-descricao" rows="3" placeholder="Detalhes, sinopse ou ficha técnica..."></textarea>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="btn-cancelar-modal-produto">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btn-salvar-produto">Salvar Produto</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Categoria (Criar / Editar) -->
+  <div id="modal-categoria" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h4 id="modal-categoria-titulo">Cadastrar Nova Categoria</h4>
+        <button class="modal-close" id="btn-fechar-modal-categoria">&times;</button>
+      </div>
+      <form id="form-categoria" class="modal-body">
+        <input type="hidden" id="cat-id">
+
+        <div class="form-group">
+          <label for="cat-nome">Nome da Categoria *</label>
+          <input type="text" id="cat-nome" placeholder="Ex: Consoles & Hardware" required>
+        </div>
+
+        <div class="form-group">
+          <label for="cat-descricao">Descrição</label>
+          <textarea id="cat-descricao" rows="3" placeholder="Descrição da categoria de produtos..."></textarea>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="btn-cancelar-modal-categoria">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btn-salvar-categoria">Salvar Categoria</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast de Notificações -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <footer class="footer">
+    <p>© 2026 <strong>Game Center Paulista</strong> — Todos os direitos reservados.</p>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
